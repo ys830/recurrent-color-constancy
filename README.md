@@ -1,5 +1,8 @@
 # Cascading Convolutional Color Constancy
 
+cp png_canon*/cs/chroma/data/canon_dataset/568_dataset/png/* combine_images/ 
+
+
 Huanglin Yu, Ke Chen*, Kaiqi Wang, Yanlin Qian, Zhaoxiang Zhang, Kui Jia &nbsp; &nbsp;
 AAAI 2020 [[paper link](https://arxiv.org/pdf/1912.11180.pdf)]
 
