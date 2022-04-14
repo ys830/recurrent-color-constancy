@@ -13,7 +13,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
-from model import ReSqueezeWB
+from model import SqueezeWB, ReSqueezeWB
 from dataset import AverageMeter, get_angular_loss, evaluate, WBDataset
 from tqdm import tqdm, trange
 
@@ -23,10 +23,6 @@ GAMMA = 0.8
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model',
-                        type=str,
-                        default='CAUNet',
-                        choices=['CAUNet', 'SqueezeWB'])
     parser.add_argument('--cameras',
                         type=str,
                         nargs='+')
@@ -81,30 +77,41 @@ if __name__ == '__main__':
 
     # load data
     print('training fold %d' % opt.foldnum)
-    dataset_train = WBDataset(camera_list=opt.cameras, train=True, fold=opt.foldnum)
+    dataset_train = WBDataset(camera_list=opt.cameras,
+                              train=True, fold=opt.foldnum)
     dataloader_train = torch.utils.data.DataLoader(dataset_train,
                                                    batch_size=opt.batch_size,
                                                    shuffle=True,
                                                    num_workers=opt.workers)
     len_dataset_train = len(dataset_train)
     print('len_dataset_train:', len(dataset_train))
-    dataset_test = WBDataset(camera_list=opt.cameras, train=False, fold=opt.foldnum)
+    dataset_test = WBDataset(camera_list=opt.cameras,
+                             train=False, fold=opt.foldnum)
     dataloader_test = torch.utils.data.DataLoader(dataset_test,
-                                                  batch_size=1,
+                                                  batch_size=1 if 'canon1d' in opt.cameras else opt.batch_size,
                                                   shuffle=False,
-                                                  num_workers=1)
+                                                  num_workers=1 if 'canon1d' in opt.cameras else opt.workers,
+                                                  drop_last=False)
     len_dataset_test = len(dataset_test)
     print('len_dataset_test:', len(dataset_test))
 
     # create network
+    base_model = SqueezeWB().cuda()
     model = ReSqueezeWB().cuda()
     if opt.pth_path != '':
         print(f'loading pretrained model from: {opt.pth_path}')
+        base_model.load_state_dict(torch.load(opt.pth_path))
         model.load_state_dict(torch.load(opt.pth_path), strict=False)
 
     # optimizer
     lrate = opt.lrate
-    optimizer = optim.Adam(model.parameters(), lr=lrate)
+    # optimizer = optim.Adam([dict(params=base_model.parameters()), 
+    #                         dict(params=model.parameters())], 
+    #                         lr=lrate)
+    optimizer = optim.AdamW([dict(params=base_model.parameters()), 
+                            dict(params=model.parameters())], 
+                            lr=lrate)
+    exp_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000], gamma=0.5)
 
     # train
     print('start train.....')
@@ -112,26 +119,37 @@ if __name__ == '__main__':
     for epoch in trange(opt.nepoch):
         # train mode
         train_loss.reset()
+        base_model.train()
         model.train()
         for i, data in enumerate(dataloader_train):
             optimizer.zero_grad()
             img, label, fn = data
             img, label = img.cuda(), label.cuda()
-            pred_list = []
+
+            # initial predict
+            pred = base_model(img)
+            pred = pred/pred[:, 1][:, None]
+            pred_list = [pred]
+            loss_list = [get_angular_loss(pred, label)]
+
+            # recurrent
             lstm_memory = (None, None, None)
             for iter in range(ITER_NUM):
-                pred, lstm_memory = model(img, lstm_memory)
-                img = img / pred[..., None, None] / np.sqrt(3)
-                img = torch.clamp(img, 0, 1)
-                if len(pred_list) != 0:
-                    pred = pred * pred_list[-1]
+                _img = img/pred_list[-1][..., None, None]
+                _img = torch.clamp(_img, 0, 1)
+                pred, lstm_memory = model(_img, lstm_memory)
+                pred = pred/pred[:, 1][:, None]
+                pred = pred * pred_list[-1]
                 pred_list.append(pred)
 
-            loss = sum([GAMMA**(ITER_NUM-1-iter)*get_angular_loss(pred, label) for iter, pred in enumerate(pred_list)])
+            loss_list += [GAMMA**(ITER_NUM-1-iter)*get_angular_loss(pred, label) for iter, pred in enumerate(pred_list[1:])]
+            loss = sum(loss_list)
             loss.backward()
             optimizer.step()
 
             train_loss.update(loss.item())
+
+        exp_lr_scheduler.step()
 
         vis.line(X=np.array([epoch]),
                  Y=np.array([train_loss.avg]),
@@ -143,26 +161,34 @@ if __name__ == '__main__':
         if epoch % 20 == 0:
             with torch.no_grad():
                 val_loss.reset()
+                base_model.eval()
                 model.eval()
                 errors = []
                 for i, data in enumerate(dataloader_test):
                     img, label, fn = data
                     img, label = img.cuda(), label.cuda()
 
-                    pred_list = []
+                    # initial predict
+                    pred = base_model(img)
+                    pred = pred/pred[:, 1][:, None]
+                    pred_list = [pred]
+
+                    # recurrent
                     lstm_memory = (None, None, None)
                     for iter in range(ITER_NUM):
-                        pred, lstm_memory = model(img, lstm_memory)
-                        img = img / pred[..., None, None] / np.sqrt(3)
-                        img = torch.clamp(img, 0, 1)
-                        if len(pred_list) != 0:
-                            pred = pred * pred_list[-1]
+                        _img = img/pred_list[-1][..., None, None]
+                        _img = torch.clamp(_img, 0, 1)
+                        pred, lstm_memory = model(_img, lstm_memory)
+                        pred = pred/pred[:, 1][:, None]
+                        pred = pred * pred_list[-1]
                         pred_list.append(pred)
+
+                    print([torch.nn.functional.normalize(pred[0][None], dim=1) for pred in pred_list], label[0][None])
                     pred = pred_list[-1]
 
                     loss = get_angular_loss(pred, label)
-                    val_loss.update(loss.item())
-                    errors.append(loss.item())
+                    val_loss.update(loss.item(), n=img.shape[0])
+                    errors += [get_angular_loss(p[None], l[None]).item() for p, l in zip(pred, label)]
 
                 vis.line(X=np.array([epoch]),
                          Y=np.array([val_loss.avg]),
@@ -175,6 +201,8 @@ if __name__ == '__main__':
                   (epoch, train_loss.avg, val_loss.avg))
             if (val_loss.avg > 0 and val_loss.avg < best_val_loss):
                 best_val_loss = val_loss.avg
+                torch.save(base_model.state_dict(),
+                           '%s/base_fold%d.pth' % (dir_name, opt.foldnum))
                 torch.save(model.state_dict(),
                            '%s/fold%d.pth' % (dir_name, opt.foldnum))
 
@@ -183,7 +211,7 @@ if __name__ == '__main__':
                 "val_loss": val_loss.avg,
                 "epoch": epoch,
                 "lr": lrate,
-                "best_val_loss": val_loss.avg,
+                "best_val_loss": best_val_loss,
                 "mean": mean,
                 "median": median,
                 "trimean": trimean,

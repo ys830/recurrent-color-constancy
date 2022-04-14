@@ -104,7 +104,9 @@ if __name__ == '__main__':
 
     # optimizer
     lrate = opt.lrate
-    optimizer = optim.Adam(model.parameters(), lr=lrate)
+    # optimizer = optim.Adam(model.parameters(), lr=lrate)
+    optimizer = optim.AdamW(model.parameters(), lr=lrate)
+    exp_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200, 500], gamma=0.5)
 
     # train
     print('start train.....')
@@ -123,6 +125,8 @@ if __name__ == '__main__':
             optimizer.step()
 
             train_loss.update(loss.item())
+
+        exp_lr_scheduler.step()
 
         vis.line(X=np.array([epoch]),
                  Y=np.array([train_loss.avg]),
@@ -162,7 +166,7 @@ if __name__ == '__main__':
                 "val_loss": val_loss.avg,
                 "epoch": epoch,
                 "lr": lrate,
-                "best_val_loss": val_loss.avg,
+                "best_val_loss": best_val_loss,
                 "mean": mean,
                 "median": median,
                 "trimean": trimean,

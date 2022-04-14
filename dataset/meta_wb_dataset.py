@@ -11,7 +11,7 @@ from .config import COLOR_CHECKER_PATH, NUS_8_PATH
 from .utils import augmentation_im, augmentation_im_and_illumination
 
 # todo: support cube+ dataset
-class WBDataset(data.Dataset):
+class MetaWBDataset(data.Dataset):
     def __init__(self, camera_list, train=True, fold=0):
         self.train = train
         with open('data/color_checker.json', 'r') as f:
@@ -56,32 +56,6 @@ class WBDataset(data.Dataset):
         # read illumination
         illumination = np.array(meta['illumination'], dtype=np.float32)
         illumination = illumination/np.linalg.norm(illumination, ord=2, axis=0, keepdims=True)
-
-        # augmentation
-        # for color checker
-        if meta['camera'] in ['canon1d', 'canon5d']:
-            if self.train:
-                raw, illumination = augmentation_im_and_illumination(raw, illumination)
-            else:
-                raw = cv2.resize(raw, (0, 0), fx=0.5, fy=0.5)
-        # for nus
-        else:
-            if self.train:
-                raw = augmentation_im(raw)
-                # aug illumination
-                # if np.random.random() < 0.5:
-                #     diff = 1-(illumination[None]*self.illumination_tables).sum(1)
-                #     samples = self.illumination_tables[np.argpartition(diff, kth=3)[:3]]
-                #     alpha = np.random.random()
-                #     sample_illumination = alpha*samples[0] + (1-alpha)*samples[1]
-                #     beta = np.random.random()
-                #     sample_illumination = beta*sample_illumination + (1-beta)*samples[2]
-                #     sample_illumination = sample_illumination/np.linalg.norm(sample_illumination, ord=2, axis=0, keepdims=True)
-                #     raw = raw / illumination[None, None] * sample_illumination[None, None]
-                #     raw = np.clip(raw, 0, 1)
-                #     illumination = sample_illumination
-            else:
-                raw = cv2.resize(raw, (512, 512))
 
         raw = torch.from_numpy(raw.transpose([2, 0, 1]).copy())
         illumination = torch.from_numpy(illumination.copy())

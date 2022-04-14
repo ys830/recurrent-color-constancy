@@ -31,11 +31,11 @@ class CA_LSTM(nn.Module):
         '''
         b, _, height, width = x.shape
         if h is None:
-            h = torch.zeros([b, self.hidden_dim, height, width]).to(x.device)
+            h = torch.zeros([b, self.hidden_dim, height, width], device=x.device)
         if c is None:
-            c = torch.zeros([b, self.hidden_dim, height, width]).to(x.device)
+            c = torch.zeros([b, self.hidden_dim, height, width], device=x.device)
         if M is None:
-            M = torch.zeros([b, self.hidden_dim, height, width]).to(x.device)
+            M = torch.zeros([b, self.hidden_dim, height, width], device=x.device)
 
         combined1 = torch.cat([x, h, c], dim=1)  # concatenate along channel axis
         combined1_conv = self.conv1(combined1)
