@@ -83,14 +83,14 @@ def meta_step(opt, base_model, meta_model, dataloader_query, dataloader_val):
             # initial predict
             with torch.no_grad():
                 pred = base_model(img)
-                pred = pred/pred[:, 1][:, None]
+                pred = pred/pred[:, 1][:, None] #？确认一下维度
             pred_list = [pred]
 
             # recurrent
             lstm_memory = (None, None, None)
             for _ in range(ITER_NUM):
                 _img = img/pred_list[-1][..., None, None]
-                _img = torch.clamp(_img, 0, 1)
+                _img = torch.clamp(_img, 0, 1) #将所有元素限制在01区间
                 pred, lstm_memory = learner(_img, lstm_memory)
                 pred = pred/pred[:, 1][:, None]
                 pred = pred * pred_list[-1]
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     opt = get_args()
 
     # init save dir
-    now = datetime.datetime.now()
+    now = datetime.datetime.now() #获取系统时间
     save_path = now.isoformat()
     dir_name = './log/{}'.format(opt.env)
     if not os.path.exists(dir_name):
@@ -146,7 +146,7 @@ if __name__ == '__main__':
     win_curve = vis.line(
         X=np.array([0]),
         Y=np.array([0]),
-    )
+    ) #远点位置x=0,y=0
 
     train_loss = AverageMeter()
     val_loss = AverageMeter()
@@ -172,8 +172,8 @@ if __name__ == '__main__':
         dataloader_train_val = torch.utils.data.DataLoader(dataset_train_val,
                                                        batch_size=1,
                                                        shuffle=False,
-                                                       num_workers=1)
-        dataloader_train_val_list.append(dataloader_train_val)     
+                                                       num_workers=1) 
+        dataloader_train_val_list.append(dataloader_train_val) #raw, illumination, meta['img_name']    
 
     # load test-query data
     dataloader_test_list = []
@@ -206,7 +206,7 @@ if __name__ == '__main__':
         base_model.load_state_dict(torch.load(opt.base_pth_path))
         model.load_state_dict(torch.load(opt.pth_path), strict=False)
     base_model.eval()
-    meta_model = l2l.algorithms.MAML(model, lr=opt.mamlrate)
+    meta_model = l2l.algorithms.MAML(model, lr=opt.mamlrate) #？什么鬼东西
 
     # optimizer
     lrate = opt.lrate
@@ -228,9 +228,9 @@ if __name__ == '__main__':
         tps_error /= opt.tps            
         optimizer.zero_grad()
         tps_error.backward()
-        optimizer.step()
+        optimizer.step() #计算梯度，反向传播
 
-        train_loss.update(tps_error.item())
+        train_loss.update(tps_error.item()) #更新train_loss
 
         vis.line(X=np.array([epoch]),
                  Y=np.array([train_loss.avg]),
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
         # val mode
         if epoch % 20 == 0:
-            with torch.no_grad():
+            with torch.no_grad(): #val与test之前都要先有torch.no_grad!!
                 val_loss.reset()
                 meta_model.eval()
                 _, errors = meta_step(opt, base_model, meta_model, dataloader_test_list[0], dataloader_test_val_list[0])

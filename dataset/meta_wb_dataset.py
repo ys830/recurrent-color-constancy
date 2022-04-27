@@ -15,7 +15,7 @@ class MetaWBDataset(data.Dataset):
     def __init__(self, camera_list, train=True, fold=0):
         self.train = train
         with open('data/color_checker.json', 'r') as f:
-            meta_infos = json.load(f)
+            meta_infos = json.load(f)#返回字典
         with open('data/nus.json', 'r') as f:
             meta_infos += json.load(f)
 
@@ -39,7 +39,7 @@ class MetaWBDataset(data.Dataset):
         
         # read img
         raw = cv2.imread(meta['img_path'], cv2.IMREAD_UNCHANGED)
-        raw = raw[..., ::-1]
+        raw = raw[..., ::-1]#??
         raw = raw.astype(np.float32)
         
         # linearization
@@ -62,4 +62,4 @@ class MetaWBDataset(data.Dataset):
         return raw, illumination, meta['img_name']
 
     def __len__(self):
-        return(len(self.meta_infos))
+        return(len(self.meta_infos)) #照片数目

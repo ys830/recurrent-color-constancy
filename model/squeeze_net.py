@@ -51,7 +51,7 @@ class SqueezeNet(nn.Module):
                 nn.Conv2d(3, 96, kernel_size=7, stride=2),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Fire(96, 16, 64, 64),
+                Fire(96, 16, 64, 64), #Fire(x, s_1x1, e_1x1, e_3x3)
                 Fire(128, 16, 64, 64),
                 Fire(128, 32, 128, 128),
                 nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
@@ -60,7 +60,7 @@ class SqueezeNet(nn.Module):
                 Fire(384, 48, 192, 192),
                 Fire(384, 64, 256, 256),
                 nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Fire(512, 64, 256, 256),
+                Fire(512, 64, 256, 256), #输出通道数512
             )
         else:
             self.features = nn.Sequential(
@@ -76,15 +76,15 @@ class SqueezeNet(nn.Module):
                 Fire(256, 48, 192, 192),
                 Fire(384, 48, 192, 192),
                 Fire(384, 64, 256, 256),
-                Fire(512, 64, 256, 256),
+                Fire(512, 64, 256, 256), #输出通道数512
             )
         # Final convolution is initialized differently form the rest
-        final_conv = nn.Conv2d(512, self.num_classes, kernel_size=1)
+        final_conv = nn.Conv2d(512, self.num_classes, kernel_size=1) #用1*1的卷积改变输出通道数目
         self.classifier = nn.Sequential(nn.Dropout(p=0.5), final_conv,
                                         nn.ReLU(inplace=True),
                                         nn.AdaptiveAvgPool2d((1, 1)))
 
-        for m in self.modules():
+        for m in self.modules(): #权重初始化
             if isinstance(m, nn.Conv2d):
                 if m is final_conv:
                     init.normal_(m.weight, mean=0.0, std=0.01)
@@ -130,25 +130,26 @@ class SqueezeWB(nn.Module):
     def __init__(self):
         super().__init__()
         model = squeezenet1_1(pretrained=True)
-        self.squeezenet1_1 = nn.Sequential(*list(model.children())[0][:12])
+        self.squeezenet1_1 = nn.Sequential(*list(model.children())[0][:12]) #？？
         self.fc = nn.Sequential(
             nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
             nn.Conv2d(512, 64, kernel_size=6, stride=1, padding=3),
             nn.ReLU(inplace=True), nn.Dropout(p=0.5),
-            nn.Conv2d(64, 3, kernel_size=1, stride=1), nn.ReLU(inplace=True))
+            nn.Conv2d(64, 3, kernel_size=1, stride=1), 
+            nn.ReLU(inplace=True))
 
     def forward(self, x):
         # x = torch.pow(x, 1/2.2)
         x = self.squeezenet1_1(x)
         x = self.fc(x)
-        x = x.mean(-1).mean(-1)
+        x = x.mean(-1).mean(-1) # 1x1的tensor
         return x
 
 class ReSqueezeWB(nn.Module):
     def __init__(self):
         super().__init__()
         model = squeezenet1_1(pretrained=True)
-        self.squeezenet1_1 = nn.Sequential(*list(model.children())[0][:12])
+        self.squeezenet1_1 = nn.Sequential(*list(model.children())[0][:12]) #少取了一个fire block及之后的classifier
         self.fc = nn.Sequential(
             nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
             nn.Conv2d(512, 64, kernel_size=6, stride=1, padding=3),
