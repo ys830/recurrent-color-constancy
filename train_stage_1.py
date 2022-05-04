@@ -66,12 +66,12 @@ if __name__ == '__main__':
         os.makedirs(dir_name)
     logname = os.path.join(dir_name, 'log_fold' + str(opt.foldnum) + '.txt')
 
-    # visualization
-    vis = visdom.Visdom(port=8097, env=opt.env + '-' + save_path)
-    win_curve = vis.line(
-        X=np.array([0]),
-        Y=np.array([0]),
-    )
+    # # visualization
+    # vis = visdom.Visdom(port=8097, env=opt.env + '-' + save_path)
+    # win_curve = vis.line(
+    #     X=np.array([0]),
+    #     Y=np.array([0]),
+    # )
 
     train_loss = AverageMeter()
     val_loss = AverageMeter()
@@ -83,6 +83,8 @@ if __name__ == '__main__':
                                                    batch_size=opt.batch_size,
                                                    shuffle=True,
                                                    num_workers=opt.workers)
+   
+
     len_dataset_train = len(dataset_train)
     print('len_dataset_train:', len(dataset_train))
     dataset_test = WBDataset(camera_list=opt.cameras, train=False, fold=opt.foldnum)
@@ -128,11 +130,11 @@ if __name__ == '__main__':
 
         exp_lr_scheduler.step()
 
-        vis.line(X=np.array([epoch]),
-                 Y=np.array([train_loss.avg]),
-                 win=win_curve,
-                 name='train loss',
-                 update='append')
+        # vis.line(X=np.array([epoch]),
+        #          Y=np.array([train_loss.avg]),
+        #          win=win_curve,
+        #          name='train loss',
+        #          update='append')
 
         # val mode
         if epoch % 20 == 0:
@@ -147,11 +149,11 @@ if __name__ == '__main__':
                     loss = get_angular_loss(pred, label)
                     val_loss.update(loss.item())
                     errors.append(loss.item())
-                vis.line(X=np.array([epoch]),
-                         Y=np.array([val_loss.avg]),
-                         win=win_curve,
-                         name='val loss',
-                         update='append')
+                # vis.line(X=np.array([epoch]),
+                #          Y=np.array([val_loss.avg]),
+                #          win=win_curve,
+                #          name='val loss',
+                #          update='append')
 
             mean, median, trimean, bst25, wst25, pct95 = evaluate(errors)
             print('Epoch: %d,  Train_loss: %f,  Val_loss: %f' %

@@ -1,5 +1,6 @@
 from __future__ import print_function
 import os
+from re import A
 import sys
 import argparse
 import random
@@ -65,12 +66,12 @@ if __name__ == '__main__':
         os.makedirs(dir_name)
     logname = os.path.join(dir_name, 'log_fold' + str(opt.foldnum) + '.txt')
 
-    # visualization
-    vis = visdom.Visdom(port=8097, env=opt.env + '-' + save_path)
-    win_curve = vis.line(
-        X=np.array([0]),
-        Y=np.array([0]),
-    )
+    # # visualization
+    # vis = visdom.Visdom(port=8097, env=opt.env + '-' + save_path)
+    # win_curve = vis.line(
+    #     X=np.array([0]),
+    #     Y=np.array([0]),
+    # )
 
     train_loss = AverageMeter()
     val_loss = AverageMeter()
@@ -98,10 +99,10 @@ if __name__ == '__main__':
     # create network
     base_model = SqueezeWB().cuda()
     model = ReSqueezeWB().cuda()
-    if opt.pth_path != '':
-        print(f'loading pretrained model from: {opt.pth_path}')
-        base_model.load_state_dict(torch.load(opt.pth_path))
-        model.load_state_dict(torch.load(opt.pth_path), strict=False)
+    # if opt.pth_path != '':
+    #     print('loading pretrained model from{}:' .format(opt.pth_path))
+    #     base_model.load_state_dict(torch.load(opt.pth_path))
+    #     model.load_state_dict(torch.load(opt.pth_path), strict=False)  from ys
 
     # optimizer
     lrate = opt.lrate
@@ -112,6 +113,7 @@ if __name__ == '__main__':
                             dict(params=model.parameters())], 
                             lr=lrate)
     exp_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[500, 1000], gamma=0.5)
+    #调整学习率
 
     # train
     print('start train.....')
@@ -127,15 +129,15 @@ if __name__ == '__main__':
             img, label = img.cuda(), label.cuda()
 
             # initial predict
-            pred = base_model(img)
-            pred = pred/pred[:, 1][:, None]
-            pred_list = [pred]
+            pred = base_model(img) #(32x3)
+            pred = pred/pred[:, 1][:, None] #(32x3/32x1),逐元素除法
+            pred_list = [pred] #打包在一个长为1的list中
             loss_list = [get_angular_loss(pred, label)]
 
             # recurrent
             lstm_memory = (None, None, None)
             for iter in range(ITER_NUM):
-                _img = img/pred_list[-1][..., None, None]
+                _img = img/pred_list[-1][..., None, None] #img:[16,3,512,512] pred_list:torch.Size([16, 3, 1, 1])
                 _img = torch.clamp(_img, 0, 1)
                 pred, lstm_memory = model(_img, lstm_memory)
                 pred = pred/pred[:, 1][:, None]
@@ -151,11 +153,11 @@ if __name__ == '__main__':
 
         exp_lr_scheduler.step()
 
-        vis.line(X=np.array([epoch]),
-                 Y=np.array([train_loss.avg]),
-                 win=win_curve,
-                 name='train loss',
-                 update='append')
+        # vis.line(X=np.array([epoch]),
+        #          Y=np.array([train_loss.avg]),
+        #          win=win_curve,
+        #          name='train loss',
+        #          update='append')
 
         # val mode
         if epoch % 20 == 0:

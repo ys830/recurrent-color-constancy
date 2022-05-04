@@ -33,6 +33,7 @@ class WBDataset(data.Dataset):
         if train:
             self.illumination_tables = np.array([m['illumination'] for m in self.meta_infos], dtype=np.float32)
             self.illumination_tables = self.illumination_tables/np.linalg.norm(self.illumination_tables, ord=2, axis=1, keepdims=True)
+            #矩阵每个行向量求向量的2范数,不知道有啥作用
 
     def __getitem__(self, idx):
         meta = self.meta_infos[idx]
@@ -85,7 +86,9 @@ class WBDataset(data.Dataset):
 
         raw = torch.from_numpy(raw.transpose([2, 0, 1]).copy())
         illumination = torch.from_numpy(illumination.copy())
+
         return raw, illumination, meta['img_name']
 
     def __len__(self):
-        return(len(self.meta_infos))
+        return(len(self.meta_infos)) #377
+

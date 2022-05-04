@@ -202,7 +202,7 @@ if __name__ == '__main__':
     base_model = SqueezeWB().cuda()
     model = ReSqueezeWB().cuda()
     if opt.pth_path != '':
-        print(f'loading pretrained model from: {opt.pth_path}')
+        print('loading pretrained model from: {}'.format(opt.pth_path))
         base_model.load_state_dict(torch.load(opt.base_pth_path))
         model.load_state_dict(torch.load(opt.pth_path), strict=False)
     base_model.eval()

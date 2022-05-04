@@ -142,7 +142,8 @@ class SqueezeWB(nn.Module):
         # x = torch.pow(x, 1/2.2)
         x = self.squeezenet1_1(x)
         x = self.fc(x)
-        x = x.mean(-1).mean(-1) # 1x1的tensor
+        x = x.mean(-1).mean(-1) # 32x3的tensor
+       
         return x
 
 class ReSqueezeWB(nn.Module):
