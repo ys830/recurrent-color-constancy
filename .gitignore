@@ -3,3 +3,4 @@ log
 .pretrain
 *__pycache__*
 /ys_debug/
+/pretrain/

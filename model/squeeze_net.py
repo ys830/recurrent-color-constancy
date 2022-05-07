@@ -160,11 +160,11 @@ class ReSqueezeWB(nn.Module):
         self.st_lstm = Prior_STLSTM(512, 512)
 
 
-    def forward(self, x, lstm_memory):
+    def forward(self, x, lstm_memory): #x = _img[16,3,512,512] lstm_memory = (None, None, None)
         h, c, M = lstm_memory
         # x = torch.pow(x, 1/2.2)
-        x = self.squeezenet1_1(x)
-        st_fused_info, h, c, M = self.st_lstm(x, h, c, M)
-        x = self.fc(st_fused_info)
-        x = x.mean(-1).mean(-1)
+        x = self.squeezenet1_1(x) #[16, 512, 31, 31]
+        st_fused_info, h, c, M = self.st_lstm(x, h, c, M) #st_fused_info,M[16,512,31,31];h,w[16,1024,31,31]
+        x = self.fc(st_fused_info)#[16,3,16,16]
+        x = x.mean(-1).mean(-1)#[16,3]
         return x, (h, c, M)
