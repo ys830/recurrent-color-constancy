@@ -99,10 +99,10 @@ if __name__ == '__main__':
     # create network
     base_model = SqueezeWB().cuda()
     model = ReSqueezeWB().cuda()
-    # if opt.pth_path != '':
-    #     print('loading pretrained model from{}:' .format(opt.pth_path))
-    #     base_model.load_state_dict(torch.load(opt.pth_path))
-    #     model.load_state_dict(torch.load(opt.pth_path), strict=False)  from ys
+    if opt.pth_path != '':
+        print('loading pretrained model from{}:' .format(opt.pth_path))
+        base_model.load_state_dict(torch.load(opt.pth_path))
+        model.load_state_dict(torch.load(opt.pth_path), strict=False) 
 
     # optimizer
     lrate = opt.lrate
@@ -132,7 +132,8 @@ if __name__ == '__main__':
             pred = base_model(img) #(32x3)
             pred = pred/pred[:, 1][:, None] #(32x3/32x1),逐元素除法
             pred_list = [pred] #打包在一个长为1的list中
-            loss_list = [get_angular_loss(pred, label)]
+            # loss_list = [get_angular_loss(pred, label)]
+            loss_list = []
 
             # recurrent
             lstm_memory = (None, None, None)
@@ -185,18 +186,18 @@ if __name__ == '__main__':
                         pred = pred * pred_list[-1]
                         pred_list.append(pred)
 
-                    print([torch.nn.functional.normalize(pred[0][None], dim=1) for pred in pred_list], label[0][None])
+                    # print([torch.nn.functional.normalize(pred[0][None], dim=1) for pred in pred_list], label[0][None])
                     pred = pred_list[-1]
 
                     loss = get_angular_loss(pred, label)
                     val_loss.update(loss.item(), n=img.shape[0])
                     errors += [get_angular_loss(p[None], l[None]).item() for p, l in zip(pred, label)]
 
-                vis.line(X=np.array([epoch]),
-                         Y=np.array([val_loss.avg]),
-                         win=win_curve,
-                         name='val loss',
-                         update='append')
+                # vis.line(X=np.array([epoch]),
+                #          Y=np.array([val_loss.avg]),
+                #          win=win_curve,
+                #          name='val loss',
+                #          update='append')
 
             mean, median, trimean, bst25, wst25, pct95 = evaluate(errors)
             print('Epoch: %d,  Train_loss: %f,  Val_loss: %f' %

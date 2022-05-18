@@ -69,20 +69,35 @@ class Prior_STLSTM(nn.Module):
         super().__init__()
         self.hidden_channel = hidden_channel
         self.ca_lstm1 = CA_LSTM(concate_channel, hidden_channel, (3, 3), False)
-        self.ca_lstm2 = CA_LSTM(hidden_channel, hidden_channel, (3, 3), False)
+    #     self.ca_lstm2 = CA_LSTM(hidden_channel, hidden_channel, (3, 3), False)
+
+    # def forward(self, combined_feat, h=None, c=None, M=None): # combined_feat[16, 512, 31, 31]
+    #     # todo check here
+    #     if h is None or c is None:
+    #         h0, h1, c0, c1 = None, None, None, None
+    #     else:
+    #         h0, h1 = torch.split(h, self.hidden_channel, dim=1)
+    #         c0, c1 = torch.split(c, self.hidden_channel, dim=1)
+
+    #     _h0, _c0, _M = self.ca_lstm1(combined_feat, h0, c0, M) #[16,512,31,31]
+    #     _h1, _c1, _M = self.ca_lstm2(_h0, h1, c1, _M)
+    #     h = torch.cat([_h0, _h1], dim=1)
+    #     c = torch.cat([_c0, _c1], dim=1)
+    #     M = _M
+    #     out = combined_feat + _h1 #out.shape[16,512,31,31]
+    #     return out, h, c, M
 
     def forward(self, combined_feat, h=None, c=None, M=None): # combined_feat[16, 512, 31, 31]
         # todo check here
         if h is None or c is None:
-            h0, h1, c0, c1 = None, None, None, None
+            h0, c0 = None, None
         else:
-            h0, h1 = torch.split(h, self.hidden_channel, dim=1)
-            c0, c1 = torch.split(c, self.hidden_channel, dim=1)
+            h0 = h
+            c0 = c
 
         _h0, _c0, _M = self.ca_lstm1(combined_feat, h0, c0, M) #[16,512,31,31]
-        _h1, _c1, _M = self.ca_lstm2(_h0, h1, c1, _M)
-        h = torch.cat([_h0, _h1], dim=1)
-        c = torch.cat([_c0, _c1], dim=1)
+        h = _h0
+        c = _c0
         M = _M
-        out = combined_feat + _h1
+        out = combined_feat + h #out.shape[16,512,31,31]
         return out, h, c, M
