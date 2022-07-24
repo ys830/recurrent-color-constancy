@@ -18,8 +18,7 @@ from model import SqueezeWB, ReSqueezeWB
 from dataset import AverageMeter, get_angular_loss, evaluate, WBDataset, ColorChecker
 from tqdm import tqdm, trange
 
-
-ITER_NUM = 5
+ITER_NUM = 3
 GAMMA = 0.8
 
 
@@ -62,7 +61,7 @@ if __name__ == '__main__':
     # init save dir
     now = datetime.datetime.now()
     save_path = now.isoformat()
-    dir_name = './log_newagu_itr5/{}'.format(opt.env)
+    dir_name = './log_newagu_detach/{}'.format(opt.env)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     logname = os.path.join(dir_name, 'log_fold' + str(opt.foldnum) + '.txt')
@@ -77,7 +76,7 @@ if __name__ == '__main__':
     train_loss = AverageMeter()
     val_loss = AverageMeter()
 
-    # # load data
+    # load data
     # print('training fold %d' % opt.foldnum)
     # dataset_train = WBDataset(camera_list=opt.cameras,
     #                           train=True, fold=opt.foldnum)
@@ -97,7 +96,7 @@ if __name__ == '__main__':
     # len_dataset_test = len(dataset_test)
     # print('len_dataset_test:', len(dataset_test))
 
-    #load data
+#load data
     dataset_train = ColorChecker(train=True,folds_num=opt.foldnum)
     dataloader_train = torch.utils.data.DataLoader(dataset_train, batch_size=opt.batch_size,shuffle=True, num_workers=opt.workers)
     len_dataset_train = len(dataset_train)
@@ -134,7 +133,7 @@ if __name__ == '__main__':
     for epoch in trange(opt.nepoch):
         # train mode
         train_loss.reset()
-        base_model.train()
+        base_model.eval()
         model.train()
         for i, data in enumerate(dataloader_train):
             optimizer.zero_grad()
@@ -142,10 +141,11 @@ if __name__ == '__main__':
             img, label = img.cuda(), label.cuda()
 
             # initial predict
-            pred = base_model(img) #(32x3)
+            with torch.no_grad():
+                pred = base_model(img) #(32x3)
             pred = pred/pred[:, 1][:, None] #(32x3/32x1),逐元素除法
             pred_list = [pred] #打包在一个长为1的list中
-            loss_list = [get_angular_loss(pred, label)]
+            loss_list = []
            
 
             # recurrent

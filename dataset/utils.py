@@ -208,26 +208,60 @@ def augmentation_im(im):
 
     return im
 
-def augmentation_im_and_illumination(im, illumination):
-    # rotation and crop
-    angle = (random.random() - 0.5) * AUGMENTATION_ANGLE
-    scale = math.exp(random.random(
-    ) * math.log(AUGMENTATION_SCALE[1] / AUGMENTATION_SCALE[0])) * AUGMENTATION_SCALE[0]
-    s = int(round(min(im.shape[:2]) * scale))
-    s = min(max(s, 10), min(im.shape[:2]))
-    start_x = random.randrange(0, im.shape[0] - s + 1)
-    start_y = random.randrange(0, im.shape[1] - s + 1)
-    im = im[start_x:start_x + s, start_y:start_y + s]
-    im = rotate_and_crop(im, angle)
-    im = cv2.resize(im, (FCN_INPUT_SIZE, FCN_INPUT_SIZE))
-    # flip lr
-    if random.random() < 0.5:
-        im = np.fliplr(im)
+# def augmentation_im_and_illumination(im, illumination):
+#     # rotation and crop
+#     angle = (random.random() - 0.5) * AUGMENTATION_ANGLE
+#     scale = math.exp(random.random(
+#     ) * math.log(AUGMENTATION_SCALE[1] / AUGMENTATION_SCALE[0])) * AUGMENTATION_SCALE[0]
+#     s = int(round(min(im.shape[:2]) * scale))
+#     s = min(max(s, 10), min(im.shape[:2]))
+#     start_x = random.randrange(0, im.shape[0] - s + 1)
+#     start_y = random.randrange(0, im.shape[1] - s + 1)
+#     im = im[start_x:start_x + s, start_y:start_y + s]
+#     im = rotate_and_crop(im, angle)
+#     im = cv2.resize(im, (FCN_INPUT_SIZE, FCN_INPUT_SIZE))
+#     # flip lr
+#     if random.random() < 0.5:
+#         im = np.fliplr(im)
 
-    color_aug = 1 + (np.random.random([3])-0.5) * AUGMENTATION_COLOR
-    color_aug = color_aug.astype(np.float32)
-    im = im * color_aug[None, None]
-    im = np.clip(im, 0, 1)
-    illumination = illumination * color_aug
-    return im, illumination
+#     color_aug = 1 + (np.random.random([3])-0.5) * AUGMENTATION_COLOR
+#     color_aug = color_aug.astype(np.float32)
+#     im = im * color_aug[None, None]
+#     im = np.clip(im, 0, 1)
+#     illumination = illumination * color_aug
+#     return im, illumination
+def augmentation_im_and_illumination(im, illumination):
+        angle = (random.random() - 0.5) * AUGMENTATION_ANGLE
+        scale = math.exp(random.random() * math.log(AUGMENTATION_SCALE[1] / AUGMENTATION_SCALE[0])) * AUGMENTATION_SCALE[0]
+        s = int(round(min(im.shape[:2]) * scale))
+        s = min(max(s, 10), min(im.shape[:2]))
+        start_x = random.randrange(0, im.shape[0] - s + 1)
+        start_y = random.randrange(0, im.shape[1] - s + 1)        
+        flip_lr = random.randint(0, 1) # Left-right flip?   
+        color_aug = np.zeros(shape=(3, 3))
+        for i in range(3):
+            color_aug[i, i] = 1 + random.random() * AUGMENTATION_COLOR - 0.5 * AUGMENTATION_COLOR 
+        
+        def crop(img, illumination):
+            if img is None:
+                return None
+            img = img[start_x:start_x + s, start_y:start_y + s]
+            img = rotate_and_crop(img, angle)
+            img = cv2.resize(img, (FCN_INPUT_SIZE, FCN_INPUT_SIZE))
+            if flip_lr:
+                img = img[:, ::-1]
+            img = img.astype(np.float32)
+            new_illum = np.zeros_like(illumination)
+            # RGB -> BGR
+            illumination = illumination[::-1]
+            for i in range(3):
+                for j in range(3):
+                    new_illum[i] += illumination[j] * color_aug[i, j]
+
+            img *= np.array([[[color_aug[0][0], color_aug[1][1], color_aug[2][2]]]],dtype=np.float32)
+            new_image = img
+            new_image = np.clip(new_image, 0, 65535)
+            new_illum = np.clip(new_illum, 0.01, 100)        
+            return new_image, new_illum[::-1]            
+        return crop(im, illumination)
 

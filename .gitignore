@@ -4,3 +4,9 @@ log
 *__pycache__*
 /ys_debug/
 /pretrain/
+/log_newagu/
+/log_newagu_detach/
+/data2/
+/log_newagu(false)/
+/log_detach/
+/log_detach2/
