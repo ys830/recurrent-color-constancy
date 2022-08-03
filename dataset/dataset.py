@@ -9,6 +9,7 @@ import scipy.io
 import numpy as np
 import torch
 import torch.utils.data as data
+import json
 
 from .config import *
 from .utils import rotate_and_crop
@@ -19,7 +20,11 @@ class ColorChecker(data.Dataset):
         with open(list_path,'r') as f:
             self.all_data_list = f.readlines()
         self.data_list = []            
-        folds = scipy.io.loadmat('./data2/folds.mat')   
+        folds = scipy.io.loadmat('./data2/folds.mat')
+
+        with open('data2/color_checker.json', 'r') as f:
+            self.meta_infos = json.load(f)
+
         if train:
             img_idx = folds['tr_split'][0][folds_num][0]
             for i in img_idx:
@@ -33,6 +38,7 @@ class ColorChecker(data.Dataset):
         
     def __getitem__(self,index):
         model = self.data_list[index]
+        meta = self.meta_infos[index]
         illums = []
         # filename
         fn = model.strip().split(' ')[1]
@@ -40,10 +46,17 @@ class ColorChecker(data.Dataset):
         illums = np.load('./data2/nlabel/'+fn+'.npy')
         img = np.array(img,dtype='float32')
         illums = np.array(illums,dtype='float32')
+
+        #mask mcc
+        polygon = np.array(meta['polygon'], dtype=np.float32)
+        polygon = polygon * np.array([img.shape[1], img.shape[0]])
+        polygon = polygon.astype(np.int32)
+        cv2.fillPoly(img, [polygon], (0, 0, 0,))
+
         if self.train:
             img, illums = self.augment_train(img,illums)
             img = np.clip(img, 0.0, 65535.0)
-            img = img * (1.0 / 65535)            
+            img = img * (1.0 / 65535) #归一化           
             img = img[:,:,::-1] # BGR to RGB       
             img = np.power(img,(1.0/2.2))            
             img = img.transpose(2,0,1) # hwc to chw   

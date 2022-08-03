@@ -19,7 +19,7 @@ from dataset import AverageMeter, get_angular_loss, evaluate, WBDataset, ColorCh
 from tqdm import tqdm, trange
 
 
-ITER_NUM = 5
+ITER_NUM = 3
 GAMMA = 0.8
 
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # init save dir
     now = datetime.datetime.now()
     save_path = now.isoformat()
-    dir_name = './log_newagu_itr5/{}'.format(opt.env)
+    dir_name = './results/0802_addmask/{}'.format(opt.env)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
     logname = os.path.join(dir_name, 'log_fold' + str(opt.foldnum) + '.txt')
@@ -150,6 +150,7 @@ if __name__ == '__main__':
 
             # recurrent
             lstm_memory = (None, None, None)
+            img = torch.pow(img,2.2)
             for iter in range(ITER_NUM):
                 _img = img/pred_list[-1][..., None, None] #img:[16,3,512,512] pred_list:torch.Size([16, 3, 1, 1])
                 _img = torch.clamp(_img, 0, 1)
@@ -191,6 +192,7 @@ if __name__ == '__main__':
 
                     # recurrent
                     lstm_memory = (None, None, None)
+                    img = torch.pow(img,2.2)
                     for iter in range(ITER_NUM):
                         _img = img/pred_list[-1][..., None, None]
                         _img = torch.clamp(_img, 0, 1)
